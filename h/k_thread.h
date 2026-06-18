@@ -4,7 +4,10 @@ class k_thread{
 public:
     friend class Scheduler;
     static k_thread* running;
-    k_thread(void(*call)(void*), void* argument);
+    void* operator new (size_t);
+    void operator delete (void*); //our operators that are using class MemoryAllocator
+    k_thread() = default;
+    k_thread(void(*call)(void*), void* argument, void* alloc_space);
     static void dispatch();
     static void exit();
     void start();

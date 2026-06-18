@@ -5,6 +5,10 @@ Scheduler* Scheduler::getInstance() {
     static Scheduler instance;
     return &instance;
 }
+Scheduler :: Scheduler(){
+    first = nullptr;
+    last = nullptr;
+}
 void Scheduler::put(k_thread* curr){
     if(last){
         last->next = curr;

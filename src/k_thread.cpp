@@ -1,13 +1,20 @@
 #include "../h/k_thread.h"
 #include "../h/Scheduler.h"
 #include "../h/MemoryAllocator.h"
+k_thread* k_thread :: running = nullptr;
 void k_thread :: start(){
     Scheduler::getInstance()->put(this);
 }
-k_thread :: k_thread(void(*call)(void*), void* argument){
+void* k_thread :: operator new(size_t size){
+    return MemoryAllocator::getInstance()->k_malloc(size);
+}
+void k_thread :: operator delete(void* ptr){
+    MemoryAllocator::getInstance()->k_free(ptr);
+}
+k_thread :: k_thread(void(*call)(void*), void* argument, void* alloc_space){
     arg = argument;
     routine = call;
-    memory = MemoryAllocator::getInstance()->k_malloc(DEFAULT_STACK_SIZE);  //potentionally nullptr
+    memory = alloc_space;  //potentionally nullptr
     sp = (size_t)((char*)memory + DEFAULT_STACK_SIZE);
     initContext();
 }
