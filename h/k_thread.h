@@ -6,17 +6,17 @@ public:
     static k_thread* running;
     k_thread(void(*call)(void*), void* argument);
     static void dispatch();
-    void exit();
-    static void start();
+    static void exit();
+    void start();
     static void wrapper(); //when we dont have an context
 
 private:
+    size_t sp;
     k_thread *next;
     void* arg;
     void(*routine)(void*);
     void* memory;
-    size_t sp;
     Status status = WAITING;
     void initContext();
 };
-extern "C" void yield(k_thread* current, k_thread* next);
+extern "C" void yield(k_thread* current, k_thread* next);  //in ASM code
