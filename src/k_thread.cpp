@@ -1,7 +1,9 @@
 #include "../h/k_thread.h"
 #include "../h/Scheduler.h"
 #include "../h/MemoryAllocator.h"
+#include "../h/syscall_c.hpp"
 k_thread* k_thread :: running = nullptr;
+k_thread* k_thread :: mainThread = nullptr;
 void k_thread :: start(){
     Scheduler::getInstance()->put(this);
 }
@@ -26,7 +28,7 @@ void k_thread ::initContext() {
 
 void k_thread :: wrapper(){
     running->routine(running->arg);
-    exit();
+    thread_exit(); //malo kriticna tacka !!!
 }
 
 void k_thread :: dispatch() {
@@ -39,6 +41,7 @@ void k_thread :: dispatch() {
 
 void k_thread :: exit() {
     k_thread* next = Scheduler::getInstance()->get();
+    if(next == nullptr) next = mainThread;
     k_thread* curr = running;
     running = next;
     curr->status = FINISHED;

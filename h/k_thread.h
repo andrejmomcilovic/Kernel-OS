@@ -2,7 +2,10 @@
 enum Status{WAITING, RUNNING, SUSPENDED, READY, FINISHED};
 class k_thread{
 public:
+    static k_thread* mainThread; //to switch context here
     friend class Scheduler;
+    friend class Queue;
+    friend class k_semaphore;
     static k_thread* running;
     void* operator new (size_t);
     void operator delete (void*); //our operators that are using class MemoryAllocator
@@ -20,6 +23,7 @@ private:
     void(*routine)(void*);
     void* memory;
     Status status = WAITING;
+    int tokens;
     void initContext();
 };
 extern "C" void yield(k_thread* current, k_thread* next);  //in ASM code
