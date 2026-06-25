@@ -1,3 +1,5 @@
+#pragma once
+#include "../lib/hw.h"
 class Queue;
 class k_semaphore{
 public:
@@ -7,8 +9,8 @@ public:
     int wait();
     int signal();
     int sem_close();
-    int sem_wait_n(int n);
-    int sem_signal_n(int n);
+    int sem_wait_n(unsigned n);
+    int sem_signal_n(unsigned n);
 private:
     int val;
     Queue* blocked;

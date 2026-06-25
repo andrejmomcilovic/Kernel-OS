@@ -61,5 +61,3 @@ yield:
     ld s11, 216(sp)
     addi sp, sp, 224
     ret
-
-

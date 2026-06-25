@@ -1,4 +1,5 @@
 #pragma once
+#include "../lib/hw.h"
 class k_thread;
 class Queue{
 public:
