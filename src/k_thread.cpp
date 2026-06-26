@@ -32,6 +32,7 @@ k_thread::k_thread(void(*call)(void*), void* argument, void* alloc_space, bool u
 void k_thread::initContext() {
     size_t* context = (size_t*)sp - 28;
     context[15] = (size_t)&wrapper;
+    context[28] = (size_t)&wrapper;
     sp = (size_t)context;
 }
 
@@ -73,7 +74,6 @@ void k_thread::dispatch() {
     }
     yield(curr, next);
 }
-
 void k_thread::exit() {
     k_thread* next = Scheduler::getInstance()->get();
     if(next == nullptr) next = mainThread;

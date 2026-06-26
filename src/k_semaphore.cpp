@@ -3,6 +3,7 @@
 #include "../h/k_thread.h"
 #include "../h/Scheduler.h"
 #include "../h/MemoryAllocator.h"
+#include "../lib/console.h"
 void* k_semaphore :: operator new(size_t size){
     return MemoryAllocator::getInstance()->k_malloc(size);
 }

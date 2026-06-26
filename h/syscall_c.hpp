@@ -1,9 +1,11 @@
 #pragma once
 #include "../lib/hw.h"
+typedef unsigned long time_t;
 class k_thread;
 typedef k_thread* thread_t;
 class k_semaphore;
 typedef k_semaphore* sem_t;
+const int EOF = -1;
 extern "C" void* mem_alloc(size_t size);
 extern "C" int mem_free (void*);
 extern "C" int thread_create (thread_t* handle, void(*start_routine)(void*), void* arg);
@@ -15,3 +17,6 @@ extern "C" int sem_wait (sem_t id);
 extern "C" int sem_signal (sem_t id);
 extern "C" int sem_wait_n(sem_t id, unsigned n);
 extern "C" int sem_signal_n(sem_t id, unsigned n);
+extern "C" int time_sleep (time_t);
+extern "C" char getc();
+extern "C" void putc(char t);

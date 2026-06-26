@@ -74,3 +74,19 @@ int sem_signal_n(sem_t id, unsigned n){
     asm volatile("ecall" : "+r"(a0) : "r"(a1), "r"(a2) : "memory");
     return (int)a0;
 }
+int time_sleep(time_t time){
+    register uint64 a0 asm("a0") = 0x31;
+    register uint64 a1 asm("a1") = (uint64)time;
+    asm volatile("ecall" : "+r"(a0) : "r"(a1) : "memory");
+    return (int)a0;
+}
+char getc(){
+    register uint64 a0 asm("a0") = 0x41;
+    asm volatile("ecall" : "+r"(a0) : : "memory");
+    return (char)a0;
+}
+void putc(char t){
+    register uint64 a0 asm("a0") = 0x42;
+    register uint64 a1 asm("a1") = (uint64)t;
+    asm volatile("ecall" : "+r"(a0) : "r"(a1) : "memory");
+}

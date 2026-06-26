@@ -1,4 +1,4 @@
-/*#include "../h/syscall_cpp.hpp"
+#include "../h/syscall_cpp.hpp"
 void* operator new(size_t size){
     return mem_alloc(size);
 }
@@ -10,15 +10,17 @@ Thread :: Thread(void (*body)(void*), void* arg){
     this->arg = arg;
 }
 int Thread :: start(){
-    thread_create(&myHandle, body, arg);
+    return thread_create(&myHandle, body, arg);
 }
 void Thread :: dispatch(){
     thread_dispatch();
 }
-Thread :: Thread(){
-
+int Thread :: sleep(time_t time){
+    return time_sleep(time);
 }
-Semaphore :: Semaphore(unsigned init = 1){
+Thread :: Thread(){};
+
+Semaphore :: Semaphore(unsigned init){
     sem_open(&myHandle, init);
 }
 int Semaphore :: wait(){
@@ -26,6 +28,17 @@ int Semaphore :: wait(){
 }
 int Semaphore :: signal(){
     return sem_signal(myHandle);
-}*/
+}
+Semaphore :: ~Semaphore(){
+    sem_close(myHandle);
+}
+char Console :: getc(){
+    return ::getc();
+}
+void Console :: putc(char t){
+    ::putc(t);
+}
+
+
 
 

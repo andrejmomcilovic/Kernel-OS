@@ -3,7 +3,10 @@
 #include "../h/k_thread.h"
 #include "../h/syscall_c.hpp"
 #include "../h/k_semaphore.h"
+#include "../h/sleepQueue.h"
 #include "../lib/hw.h"
+#include "../h/Scheduler.h"
+#include "../h/Console.h"
 
 static void halt() { *(volatile unsigned int*)0x100000 = 0x5555; }
 
@@ -20,6 +23,12 @@ extern "C" bool interruptHandler(){
         asm volatile("csrr %0, sip" : "=r"(sipVal));
         sipVal &= ~2UL;
         asm volatile("csrw sip, %0" : : "r"(sipVal));
+        sleepQueue::getInstance()->update();
+        k_thread* toWake;
+        while((toWake = sleepQueue::getInstance()->popExpired())){
+            toWake->status = READY;
+            Scheduler::getInstance()->put(toWake);
+        }
         k_thread *curr = k_thread::running;
         curr->currTime++;
         if(curr->currTime == DEFAULT_TIME_SLICE){
@@ -30,7 +39,12 @@ extern "C" bool interruptHandler(){
     }
     else if(regValue == 0x8000000000000009){
         int irq = plic_claim();
-        console_handler();
+        if(irq == CONSOLE_IRQ){
+            while(*((volatile uint8*)CONSOLE_STATUS) & CONSOLE_RX_STATUS_BIT){
+                char c = *((volatile uint8*)CONSOLE_RX_DATA);
+                k_Console::getInstance()->rxPut(c);
+            }
+        }
         plic_complete(irq);
         result = true;
     }
@@ -122,58 +136,121 @@ extern "C" uint64 syscall(uint64 code, uint64 a1, uint64 a2, uint64 a3, uint64 a
             value = sem->sem_signal_n(val);
             break;
         }
+        case 0x31:{
+            k_thread* curr = k_thread::running;
+            curr->status = SUSPENDED;
+            sleepQueue::getInstance()->insert(curr, a1);
+            k_thread* next = Scheduler::getInstance()->get();
+            if(next == nullptr) next = k_thread::mainThread;
+            k_thread::running = next;
+            if(!k_thread::running->isUserThread){
+                uint64 sppVal;
+                asm volatile("csrr %0, sstatus" : "=r"(sppVal));
+                sppVal |= 256UL;
+                sppVal |= 32UL;
+                asm volatile("csrw sstatus, %0" : : "r"(sppVal));
+            }
+            else{
+                uint64 sppVal;
+                asm volatile("csrr %0, sstatus" : "=r"(sppVal));
+                sppVal &= ~256UL;
+                sppVal |= 32UL;
+                asm volatile("csrw sstatus, %0" : : "r"(sppVal));
+            }
+            yield(curr, next);
+            value = 0;
+            break;
+        }
+        case 0x41:{
+            value = (uint64) k_Console::getInstance()->rxGet();
+            break;
+        }
+        case 0x42:{
+            k_Console::getInstance()->txPut((char)a1);
+            value = 0;
+            break;
+        }
     }
     return value;
 }
 
-sem_t mutex;
-int counter = 0;
+
+
+void txThreadBody(void* arg){
+    while(true){
+        char c = k_Console::getInstance()->txGet();  // 1. čekaj znak
+        while(!(*((volatile uint8*)CONSOLE_STATUS) & CONSOLE_TX_STATUS_BIT)){thread_dispatch();}  // 2. čekaj UART
+        *((volatile uint8*)CONSOLE_TX_DATA) = c;  // 3. pošalji
+    }
+}
 
 void taskA(void* arg){
     while(true){
-        sem_wait(mutex);
-        counter++;
-        __putc('A');
-        __putc('0' + counter % 10);
-        sem_signal(mutex);
-        thread_dispatch();
+        putc('A');
+        time_sleep(5);
     }
 }
 
 void taskB(void* arg){
     while(true){
-        sem_wait(mutex);
-        counter++;
-        __putc('B');
-        __putc('0' + counter % 10);
-        sem_signal(mutex);
+        putc('B');
+        time_sleep(10);
+    }
+}
+void taskC(void* arg){
+    while(true){
+        putc('C');
         thread_dispatch();
     }
 }
 
 void userMain(){
-    sem_open(&mutex, 1);
-    thread_t hA, hB;
+    thread_t hA, hB, hC;
     thread_create(&hA, taskA, nullptr);
     thread_create(&hB, taskB, nullptr);
+    thread_create(&hC, taskC, nullptr);
     while(true){ thread_dispatch(); }
 }
+
 
 void userWrapper(void* ptr){
     userMain();
 }
 
 void main() {
-    asm volatile("la t0, InterruptRoutine");
+    /*asm volatile("la t0, InterruptRoutine");
     asm volatile("csrw stvec, t0");
     k_thread* main_Thread = new k_thread();
     k_thread::mainThread = main_Thread;
     void* allocspace = MemoryAllocator::getInstance()->k_malloc(DEFAULT_STACK_SIZE);
     k_thread* userThread = new k_thread(userWrapper, nullptr, allocspace);
+    void *txallocspace = MemoryAllocator::getInstance()->k_malloc(DEFAULT_STACK_SIZE);
+    k_thread *txThread = new k_thread(txThreadBody, nullptr, txallocspace, false); //kernel nit
+    txThread->start();
     k_thread::running = main_Thread;
-    asm volatile("csrs sstatus, %0" : : "r"(2));
-    asm volatile("csrs sie, %0" : : "r"(2)); //odluta posle ove linija kada se doda value == 2
+    asm volatile("csrs sstatus, %0" : : "r"(2)); ////nakon izvrsavanja ove linije se skoci u nit za ispis
+    asm volatile("csrs sie, %0" : : "r"(2));
     k_thread::running = userThread;
     yield(main_Thread, userThread);
+    halt();*/
+    asm volatile("la t0, InterruptRoutine");
+    asm volatile("csrw stvec, t0");
+    k_thread* main_Thread = new k_thread();
+    k_thread::mainThread = main_Thread;
+
+    void* allocspace = MemoryAllocator::getInstance()->k_malloc(DEFAULT_STACK_SIZE);
+    k_thread* userThread = new k_thread(userWrapper, nullptr, allocspace);
+
+    void* txallocspace = MemoryAllocator::getInstance()->k_malloc(DEFAULT_STACK_SIZE);
+    k_thread* txThread = new k_thread(txThreadBody, nullptr, txallocspace, false);
+
+    txThread->start();
+    userThread->start();   // ← dodaj ovo
+
+    k_thread::running = main_Thread;
+    asm volatile("csrs sstatus, %0" : : "r"(2));
+    asm volatile("csrs sie, %0" : : "r"(2));
+
+    while(true){thread_dispatch(); }
     halt();
 }

@@ -1,4 +1,4 @@
-/*#pragma once
+#pragma once
 #include "syscall_c.hpp"
 
 void* ::operator new (size_t);
@@ -40,4 +40,4 @@ class Console {
 public:
     static char getc ();
     static void putc (char);
-};*/
+};
