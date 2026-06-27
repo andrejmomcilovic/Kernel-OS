@@ -1,4 +1,3 @@
-#include "../lib/console.h"
 #include "../h/MemoryAllocator.h"
 #include "../h/k_thread.h"
 #include "../h/syscall_c.hpp"
@@ -84,14 +83,16 @@ extern "C" uint64 syscall(uint64 code, uint64 a1, uint64 a2, uint64 a3, uint64 a
         }
         case 0x11:{
             k_thread *t = new k_thread((void(*)(void*))a2, (void*)a3, (void*)a4);
+            if(t == nullptr) {value = -1; break;}
             t->start();
+            if(t->isUserThread) k_thread::count++;
             k_thread **temp = (k_thread**)a1;
             *temp = t;
-            if(t != nullptr) value = 0;
-            else value = -1;
+            value = 0;
             break;
         }
         case 0x12:{
+            if(k_thread::running->isUserThread) k_thread::count--;
             k_thread::exit();
             value = 0;
             break;
@@ -137,6 +138,10 @@ extern "C" uint64 syscall(uint64 code, uint64 a1, uint64 a2, uint64 a3, uint64 a
             break;
         }
         case 0x31:{
+            if(a1 == 0){
+                value = 0;
+                break;
+            }
             k_thread* curr = k_thread::running;
             curr->status = SUSPENDED;
             sleepQueue::getInstance()->insert(curr, a1);
@@ -162,7 +167,7 @@ extern "C" uint64 syscall(uint64 code, uint64 a1, uint64 a2, uint64 a3, uint64 a
             break;
         }
         case 0x41:{
-            value = (uint64) k_Console::getInstance()->rxGet();
+            value = (uint64) (int) k_Console::getInstance()->rxGet();
             break;
         }
         case 0x42:{
@@ -178,39 +183,14 @@ extern "C" uint64 syscall(uint64 code, uint64 a1, uint64 a2, uint64 a3, uint64 a
 
 void txThreadBody(void* arg){
     while(true){
-        char c = k_Console::getInstance()->txGet();  // 1. čekaj znak
-        while(!(*((volatile uint8*)CONSOLE_STATUS) & CONSOLE_TX_STATUS_BIT)){thread_dispatch();}  // 2. čekaj UART
-        *((volatile uint8*)CONSOLE_TX_DATA) = c;  // 3. pošalji
+        char c = k_Console::getInstance()->txGet();
+        while(!(*((volatile uint8*)CONSOLE_STATUS) & CONSOLE_TX_STATUS_BIT)){thread_dispatch();}
+        *((volatile uint8*)CONSOLE_TX_DATA) = c;
     }
 }
 
-void taskA(void* arg){
-    while(true){
-        putc('A');
-        time_sleep(5);
-    }
-}
 
-void taskB(void* arg){
-    while(true){
-        putc('B');
-        time_sleep(10);
-    }
-}
-void taskC(void* arg){
-    while(true){
-        putc('C');
-        thread_dispatch();
-    }
-}
 
-void userMain(){
-    thread_t hA, hB, hC;
-    thread_create(&hA, taskA, nullptr);
-    thread_create(&hB, taskB, nullptr);
-    thread_create(&hC, taskC, nullptr);
-    while(true){ thread_dispatch(); }
-}
 
 
 void userWrapper(void* ptr){
@@ -251,6 +231,6 @@ void main() {
     asm volatile("csrs sstatus, %0" : : "r"(2));
     asm volatile("csrs sie, %0" : : "r"(2));
 
-    while(true){thread_dispatch(); }
+    while(k_thread::count || !k_Console::getInstance()->txEmpty()){thread_dispatch(); }
     halt();
 }

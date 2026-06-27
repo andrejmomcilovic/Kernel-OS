@@ -39,6 +39,7 @@ int k_semaphore :: wait(){
             asm volatile("csrw sstatus, %0" : : "r"(sppVal));
         }
         yield(curr, next);
+        if(closed) return -1;
     }
     return 0;
 }
@@ -56,6 +57,7 @@ int k_semaphore :: signal(){
     return 0;
 }
 int k_semaphore :: sem_close(){
+    closed = true;
     k_thread* toPut;
     while((toPut = blocked->get())){
         toPut->status = READY;

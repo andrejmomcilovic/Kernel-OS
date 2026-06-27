@@ -14,4 +14,5 @@ public:
 private:
     int val;
     Queue* blocked;
+    bool closed = false;
 };

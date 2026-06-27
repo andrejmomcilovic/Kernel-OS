@@ -1,4 +1,11 @@
 #include "../h/syscall_cpp.hpp"
+
+
+void functionWrapper(void* arg){
+    Thread *t = (Thread*) arg;
+    t->run();
+}
+
 void* operator new(size_t size){
     return mem_alloc(size);
 }
@@ -18,8 +25,11 @@ void Thread :: dispatch(){
 int Thread :: sleep(time_t time){
     return time_sleep(time);
 }
-Thread :: Thread(){};
-
+Thread :: Thread(){
+    this->body = functionWrapper;
+    this->arg = this;
+};
+Thread :: ~Thread(){};
 Semaphore :: Semaphore(unsigned init){
     sem_open(&myHandle, init);
 }
@@ -37,6 +47,18 @@ char Console :: getc(){
 }
 void Console :: putc(char t){
     ::putc(t);
+}
+void PeriodicThread ::terminate() {
+    thread_exit();
+}
+PeriodicThread ::PeriodicThread(time_t period) : Thread() {
+    this->period = period;
+}
+void PeriodicThread :: run(){
+    while(true){
+        periodicActivation();
+        time_sleep(period);
+    }
 }
 
 

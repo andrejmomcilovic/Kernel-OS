@@ -6,7 +6,7 @@
 
 k_thread* volatile k_thread::running = nullptr;
 k_thread* k_thread::mainThread = nullptr;
-
+volatile int k_thread :: count = 1;
 void k_thread::start(){
     Scheduler::getInstance()->put(this);
 }
@@ -35,7 +35,9 @@ void k_thread::initContext() {
     context[28] = (size_t)&wrapper;
     sp = (size_t)context;
 }
-
+extern "C" void threadExit(){
+    thread_exit();
+}
 void k_thread::wrapper(){
     //asm volatile("csrs sstatus, %0" : : "r"(2));
     // kernel nit
@@ -47,8 +49,10 @@ void k_thread::wrapper(){
         asm volatile("csrw sstatus, %0" : : "r"(sppVal));
         asm volatile("csrw sepc, %0" : : "r"(running->routine));
         asm volatile("mv a0, %0" : : "r"(running->arg));
+        asm volatile("la ra, threadExit");
         asm volatile("sret");
     }
+    asm volatile("la ra, threadExit");  //we want to exit thread
     running->routine(running->arg);
     thread_exit();
 }

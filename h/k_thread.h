@@ -6,6 +6,7 @@ extern "C" uint64 syscall(uint64 code, uint64 a1, uint64 a2, uint64 a3, uint64 a
 class k_thread{
 public:
     static k_thread* mainThread; //to switch context here
+    static volatile int count;
     friend class Scheduler;
     friend class Queue;
     friend class k_semaphore;

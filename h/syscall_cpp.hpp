@@ -1,11 +1,13 @@
 #pragma once
 #include "syscall_c.hpp"
 
-void* ::operator new (size_t);
-void ::operator delete (void*);
+void* operator new (size_t);
+void operator delete (void*);
+
 
 class Thread {
 public:
+    friend void functionWrapper(void*);
     Thread (void (*body)(void*), void* arg);
     virtual ~Thread ();
     int start ();
@@ -35,6 +37,7 @@ protected:
     virtual void periodicActivation () {}
 private:
     time_t period;
+    void run() override;
 };
 class Console {
 public:
